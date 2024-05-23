@@ -1,0 +1,79 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>登录</title>
+    <link rel="icon" href="{% static 'infoManage/image/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'infoManage/plugins/bootstrap-5.3.0-dist/css/bootstrap.min.css' %}">
+    <style>
+        {#登录界面的样式#}
+        .login {
+            width: 400px;
+            border: 1px solid #dddddd;
+            border-radius: 5px;
+            box-shadow: 5px 5px 20px #aaa;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 130px;
+            padding: 20px 40px;
+        }
+
+        {#验证码框的大小#}
+        .code-input {
+            width: 200px;
+            height: 50px;
+        }
+    </style>
+</head>
+<body>
+<!-- 用户登录界面 -->
+<div class="login">
+    <h2>用户登录</h2>
+    <form method="post" novalidate id="login">
+        {% csrf_token %}
+        {% for i in form %}
+            <div class="form-group">
+                {% if i.name == 'code' %}
+                    <label for="id_code">{{ i.label }}:</label>
+                    <div class="row">
+                        <div class="code-input">
+                            {{ i }}
+                            <span style="color: red">{{ i.errors.0 }}</span>
+                        </div>
+                        <div class="w-25" id="flush_code">
+                            <img alt="" id="image_code" src="{% url 'infoManage:image_code' %}"
+                                 onclick="FlushCode()"/>
+                        </div>
+                    </div>
+                {% else %}
+                    <label>{{ i.label }}:</label>
+                    {{ i }}
+                    <span style="color: red">{{ i.errors.0 }}</span>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <h2></h2>
+        <div>
+            <button type="submit" class="btn btn-primary">登 录</button>
+            <span style="color: red;">{{ error_msg }}</span>
+        </div>
+    </form>
+</div>
+<script src="{% static 'infoManage/js/jquery-3.7.0.min.js' %}"></script>
+<script src="{% static 'infoManage/plugins/bootstrap-5.3.0-dist/js/bootstrap.js' %}"></script>
+<script type="text/javascript">
+    //点击刷新验证码
+    function FlushCode() {
+        $.ajax({
+            url: "{% url 'infoManage:image_code' %}",
+            type: "get",
+            success: function (res) {
+                let s = '<img alt="" id="image_code" src={% url 'infoManage:image_code' %} onclick="FlushCode()">'
+                $("#flush_code").html(s);
+            }
+        })
+    }
+</script>
+</body>
+</html>

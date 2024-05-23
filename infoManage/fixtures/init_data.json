@@ -1,0 +1,21 @@
+[
+  {
+    "model": "infoManage.Environment",
+    "pk": "default",
+    "fields": {
+      "area_name": "默认环境",
+      "create_time": "2023-01-01 8:00:00+00:00",
+      "update_time": "2023-01-01 8:00:00+00:00",
+      "note": "默认环境"
+    }
+  },
+  {
+    "model": "infoManage.AdminUser",
+    "pk": "1",
+    "fields": {
+      "username": "admin",
+      "password": "use_password_hash_instead_me",
+      "name": "管理员"
+    }
+  }
+]

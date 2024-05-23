@@ -1,0 +1,47 @@
+{% extends 'infoManage/layout.html' %}
+{% block search %}
+    <!-- 搜索框 -->
+    <form method="get" class="col-12 col-lg-auto mb-3 mb-lg-0 me-lg-3" role="search">
+
+        <div class="input-group">
+            <input type="search" class="form-control" placeholder="{{ search_example }}" name="search"
+                   value="{{ search_data }}"/>
+            <span class="input-group-btn">
+                <button class="btn btn-default" type="submit">
+                    <svg width="20" height="20" fill="currentColor"
+                         class="bi bi-search"
+                         viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                </button>
+            </span>
+        </div>
+    </form>
+{% endblock %}
+{% block content %}
+    {% block body %}{% endblock %}
+    <!-- 分页 -->
+    <nav aria-label="Page navigation example">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1&search={{ search_data }}">&laquo; 首页</a></li>
+                <li class="page-item"><a class="page-link"
+                                         href="?page={{ page_obj.previous_page_number }}&search={{ search_data }}">上一页</a>
+                </li>
+            {% endif %}
+            <li class="page-item"><a class="page-link"
+                                     href="?page={{ page_obj.start_index }}&search={{ search_data }}">{{ page_obj.number }}</a>
+            </li>
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link"
+                                         href="?page={{ page_obj.next_page_number }}&search={{ search_data }}">下一页</a>
+                </li>
+                <li class="page-item"><a class="page-link"
+                                         href="?page={{ page_obj.paginator.num_pages }}&search={{ search_data }}">尾页
+                    &raquo;</a></li>
+            {% endif %}
+            <li class="page-item" disabled="disable"><a class="page-link">Page {{ page_obj.number }}
+                of {{ page_obj.paginator.num_pages }}</a></li>
+        </ul>
+    </nav>
+{% endblock %}

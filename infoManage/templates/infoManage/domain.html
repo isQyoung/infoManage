@@ -1,0 +1,322 @@
+{% extends 'infoManage/pagination.html' %}
+{% load static %}
+{% block body %}
+    <!-- 域名当前所属区域展示 -->
+    <div class="btn-group">
+        <button type="button" class="btn btn-info">{{ current_env }}</button>
+        <button type="button" class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
+                aria-expanded="false">
+            <span class="visually-hidden">Toggle Dropdown</span>
+        </button>
+        <!-- 区域选择下拉列表 -->
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{% url 'infoManage:domain_list' env_name='all' %}">所有环境</a></li>
+            {% for env in env_list %}
+                <li><a class="dropdown-item"
+                       href="{% url 'infoManage:domain_list' env_name=env.area %}">{{ env.area_name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    <!-- 新建和模板按钮 -->
+    <button type="button" class="btn btn-success" onclick="AddEvent('{{ env_name }}')">新建域名</button>
+    <button type="button" class="btn btn-primary" data-toggle="modal" onclick="UploadEvent()">模板上传</button>
+    <!-- 显示域名列表 -->
+    <div class="bs-example" data-example-id="Governable-table">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                {% for key in key_list %}
+                    {% if key != 'ID' %}
+                        <th>{{ key }}</th>
+                    {% endif %}
+                {% endfor %}
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data in page_obj %}
+                <tr>
+                    <td>{{ data.protocols }}</td>
+                    <td>{{ data.domain_name }}</td>
+                    <td>{{ data.listen_port }}</td>
+                    <td>{{ data.server_ipaddress }}</td>
+                    <td>{{ data.server_name }}</td>
+                    <td>{{ data.server_use|default_if_none:"" }}</td>
+                    <td>{{ data.environment.area_name }}</td>
+                    <td>{{ data.note|default_if_none:"" }}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm"
+                                onclick="visitWeb('{{ data.protocols }}','{{ data.domain_name }}','{{ data.listen_port }}')">
+                            访问
+                        </button>
+                        <button class="btn btn-info btn-sm"
+                                onclick="copyToClip('{{ data.protocols }}','{{ data.domain_name }}','{{ data.listen_port }}')">
+                            复制
+                        </button>
+                        <a class="btn btn-primary btn-sm btn-edit" onclick="editServer('{{ data.server_name }}')">编辑</a>
+                        <a class="btn btn-danger btn-sm btn-delete"
+                           onclick="DeleteServer('{{ data.server_name }}')">删除</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- 添加/编辑服务器Modal -->
+    <div class="modal fade" id="modalAddEdit" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="modalAddEditLabel">title</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAddEdit" novalidate class="form-horizontal">
+                        <div class="clearfix">
+                            {% for i in form %}
+                                <div class="col-xs-12">
+                                    <div class="form-group" style="position: relative;margin-bottom: 20px">
+                                        <label>{{ i.label }}</label>
+                                        {{ i }}
+                                        <span class="error-msg" style="color: red;position: absolute"></span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="BtnSaveEvent()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 删除服务器Modal -->
+    <div class="modal fade" id="modalDelete" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog">
+            <div class="alert alert-danger alert-dismissible" role="alert">
+                <h4>是否删除该域名？</h4>
+                <p>删除后，相关域名信息将会消失！</p>
+                <div class="modal-footer" style="pointer-events: auto">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="ConfirmDeleteServer()">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 上传Small modal -->
+    <div class="modal fade" id="modalUpload" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <p>
+                    <!-- 读取 static目录下的文件-->
+                    <a href="{% static 'infoManage/excel/domain.xlsx' %}">模板下载</a>
+                    <input type="file" class="form-control" name="upload" id="file_uploads" required/>
+                </p>
+                <button class="btn btn-info form-control" type="submit" onclick="uploads()" value="submit">上传
+                </button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+{% block js %}
+    <script type="text/javascript">
+        //域名对应的服务名称
+        let SERVERNAME;
+
+        //点击新建弹出
+        function AddEvent(content) {
+            // 将正在编辑的SERVERNAME设置为空
+            SERVERNAME = undefined;
+            // 清空对话框内容
+            $("#formAddEdit")[0].reset();
+            // 修改对话框标题
+            $("#modalAddEditLabel").text("新建");
+            // 显示新建账号模态框
+            $('#modalAddEdit').modal('show');
+            // 清空可能残留的错误
+            $(".error-msg").empty();
+            // 设置所属环境的默认值
+            $("#id_environment").val(content)
+        }
+
+        //点击编辑弹出
+        function editServer(content) {
+            // 编辑域名信息
+            SERVERNAME = content
+            $.ajax({
+                url: "{% url 'infoManage:domain_detail' %}",
+                type: "get",
+                data: {
+                    server_name: content
+                },
+                dataType: "JSON",
+                success: function (res) {
+                    if (res.status) {
+                        //将数据赋值到标签中
+                        $.each(res.data, function (name, value) {
+                            $("#id_" + name).val(value)
+                        })
+                        //修改对话框标题
+                        $("#modalAddEditLabel").text("编辑")
+                        //点击编辑按钮，显示对话框
+                        $('#modalAddEdit').modal('show');
+                        //清空可能残留的错误
+                        $(".error-msg").empty();
+                    } else {
+                        alert(res.error);
+                    }
+                }
+
+            })
+
+        }
+
+        //点击保存，根据SERVERNAME来执行脚本
+        function BtnSaveEvent() {
+            // 清除错误信息
+            $(".error-msg").empty();
+            // 变量SERVERNAME存在则是编辑，不存在则是新建
+            if (SERVERNAME) {
+                EditServer();
+            } else {
+                AddServer();
+            }
+        }
+
+        //新增域名
+        function AddServer() {
+            //点击保存按钮，发生请求
+            $.ajax({
+                url: "{% url 'infoManage:domain_add' %}",
+                type: "post",
+                data: $("#formAddEdit").serialize(),
+                dataType: 'JSON',
+                success: function (res) {
+                    if (res.status) {
+                        $('#modalAddEdit').modal('hide');
+                        Message("提醒消息", "域名添加成功");
+                        FlushPage(2100);
+                    } else {
+                        // 把错误信息显示在对话框中
+                        $.each(res.error, function (name, errorList) {
+                            $("#id_" + name).next().text(errorList[0]);
+                        })
+                    }
+                }
+            })
+        }
+
+        //编辑域名
+        function EditServer() {
+            //点击保存按钮，发生请求/domain/edit/?server_name=xx
+            $.ajax({
+                url: "{% url 'infoManage:domain_edit' %}" + "?server_name=" + SERVERNAME,
+                type: "post",
+                data: $("#formAddEdit").serialize(),
+                dataType: 'JSON',
+                success: function (res) {
+                    if (res.status) {
+                        $('#modalAddEdit').modal('hide');
+                        Message("提醒消息", "域名修改成功");
+                        FlushPage(2100);
+                    } else {
+                        if (res.tips) {
+                            alert(res.tips);
+                        } else {
+                            // 把错误信息显示在对话框中
+                            $.each(res.error, function (name, errorList) {
+                                $("#id_" + name).next().text(errorList[0]);
+                            })
+                        }
+                    }
+                }
+            })
+        }
+
+
+        //点击删除按钮，显示对话框
+        function DeleteServer(content) {
+            $('#modalDelete').modal('show');
+            SERVERNAME = content
+            console.log('询问删除 ' + SERVERNAME);
+        }
+
+        //点击确定删除按钮，发送ajax请求删除数据
+        function ConfirmDeleteServer() {
+            console.log('确定删除' + SERVERNAME);
+            $.ajax({
+                url: "{% url 'infoManage:domain_delete' %}",
+                type: "get",
+                data: {
+                    server_name: SERVERNAME
+                },
+                dataType: "JSON",
+                success: function (res) {
+                    if (res.status) {
+                        //删除成功信息
+                        console.log(SERVERNAME + ' 删除成功');
+                        SERVERNAME = undefined
+                        $('#modalDelete').modal('hide');
+                        Message("提醒消息", "域名删除成功");
+                        FlushPage(2100);
+
+                    } else {
+                        //删除失败
+                        alert(res.error)
+                        location.reload()
+                    }
+                }
+            });
+        }
+
+        //显示上传模态框
+        function UploadEvent() {
+            $('#modalUpload').modal('show');
+        }
+
+        //上传excel
+        function uploads() {
+            const form_data = new FormData();
+            form_data.append('files', $('#file_uploads')[0].files[0]);
+            $.ajax({
+                url: "{% url 'infoManage:domain_upload' %}",
+                type: 'post',
+                contentType: false,
+                processData: false,
+                data: form_data,
+                success: function () {
+                    alert('上传完成!')
+                    location.reload();
+                }
+            })
+        }
+
+        //点击访问
+        function visitWeb(content1, content2, content3) {
+            // 跳转拼接的网页
+            window.open(content1 + '://' + content2 + ':' + content3, '_blank');
+        }
+
+        //点击复制
+        function copyToClip(content1, content2, content3) {
+            let port;
+            let aux = document.createElement("input");
+            port = ':' + content3
+            if (content3 === '80' || content3 === '443') {
+                port = '';
+            }
+            console.log(content1 + '://' + content2 + port);
+            aux.setAttribute("value", content1 + '://' + content2 + port);
+            document.body.appendChild(aux);
+            aux.select();
+            document.execCommand("copy");
+            document.body.removeChild(aux);
+            console.log("复制成功");
+            //alert("复制成功");
+        }
+
+    </script>
+{% endblock %}

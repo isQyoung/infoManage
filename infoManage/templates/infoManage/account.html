@@ -1,0 +1,342 @@
+{% extends 'infoManage/pagination.html' %}
+{% load static %}
+{% block body %}
+    <!-- 账号当前所属区域展示 -->
+    <div class="btn-group">
+        <button type="button" class="btn btn-info">{{ current_env }}</button>
+        <button type="button" class="btn btn-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"
+                aria-expanded="false">
+            <span class="visually-hidden">Toggle Dropdown</span>
+        </button>
+        <!-- 区域选择下拉列表 -->
+        <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="{% url 'infoManage:account_list' env_name='all' %}">所有环境</a></li>
+            {% for env in env_list %}
+                <li><a class="dropdown-item"
+                       href="{% url 'infoManage:account_list' env_name=env.area %}">{{ env.area_name }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 新建和模板按钮 -->
+    <button type="button" class="btn btn-success" onclick="BtnAddEvent('{{ env_name }}')">新建账号</button>
+    <button type="button" class="btn btn-info" data-toggle="modal" onclick="UploadEvent()">模板上传</button>
+    <!-- 显示账号表的界面 -->
+    <div class="bs-example" data-example-id="Governable-table">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                {% for key in key_list %}
+                    {% if key != 'ID' %}
+                        <th>{{ key }}</th>
+                    {% endif %}
+                {% endfor %}
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data in page_obj %}
+                <tr>
+                    <td>{{ data.name }}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm"
+                                onclick="copyToClip('{{ data.username }}')">{{ data.username }}
+                        </button>
+                    </td>
+                    <td>
+                        {% if data.password %}
+                            <button class="btn btn-info btn-sm" onclick="GetPassword('{{ data.password }}')">复制
+                            </button>
+                        {% endif %}
+                    </td>
+                    <td>{{ data.environment.area_name }}</td>
+                    <td>{{ data.note|default_if_none:"" }}</td>
+                    <td>
+                        <a class="btn btn-primary btn-sm btn-edit" onclick="BtnEditEvent('{{ data.name }}')">编辑</a>
+                        <a class="btn btn-danger btn-sm btn-delete" onclick="BtnDeleteEvent('{{ data.name }}')">删除</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- 添加/编辑账号Modal -->
+    <div class="modal fade" id="modalAddEdit" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="modalAddEditLabel">title</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAddEdit" novalidate>
+                        <div class="clearfix">
+                            {% for i in form %}
+                                <div class="col-xs-12">
+                                    <div class="form-group" style="position: relative;margin-bottom: 20px">
+                                        <label>{{ i.label }}</label>
+                                        {{ i }}
+                                        <span class="error-msg" style="color: red;position: absolute"></span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="BtnSaveEvent()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 删除账号Modal -->
+    <div class="modal fade" id="modalDelete" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog">
+            <div class="alert alert-danger alert-dismissible" role="alert">
+                <h4>是否删除该账号？</h4>
+                <p>删除后，相关账号将会消失！</p>
+                <div class="modal-footer" style="pointer-events: auto">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="ConfirmDeleteEvent()">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 上传Small modal -->
+    <div class="modal fade" id="modalUpload" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <p>
+                    <!-- 读取 static目录下的文件-->
+                    <a href="{% static 'infoManage/excel/account.xlsx' %}">模板下载</a>
+                    <input type="file" class="form-control" name="upload" id="file_uploads" required/>
+                </p>
+                <button class="btn btn-info form-control" type="submit" onclick="uploads()" value="submit">上传
+                </button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block js %}
+    <script type="text/javascript">
+        // 用户账号名
+        let NAME
+
+        //点击新建弹出
+        function BtnAddEvent(content) {
+            // 将正在编辑的ID设置为空
+            NAME = undefined;
+            // 清空对话框内容
+            $("#formAddEdit")[0].reset();
+            // 修改对话框标题
+            $("#modalAddEditLabel").text("新建账号");
+            // 点击新建按钮，显示对话框
+            $('#modalAddEdit').modal('show');
+            // 设置所属环境的默认值
+            $("#id_environment").val(content)
+        }
+
+        //点击编辑弹出
+        function BtnEditEvent(content) {
+            console.log(content)
+            //清空对话框内容
+            $("#formAddEdit")[0].reset();
+            NAME = content
+            //发送ajax去后端获取当前行的数据  /account/detail/?name=xxx
+            $.ajax({
+                url: "{% url 'infoManage:account_detail' %}",
+                type: "get",
+                data: {
+                    name: content
+                },
+                dataType: "JSON",
+                success: function (res) {
+                    if (res.status) {
+                        //将数据赋值到标签中
+                        $.each(res.data, function (name, value) {
+                            $("#id_" + name).val(value)
+                            console.log(name, value)
+                        })
+                        //修改对话框标题
+                        $("#modalAddEditLabel").text("编辑")
+                        //点击编辑按钮，显示对话框
+                        $('#modalAddEdit').modal('show');
+                    } else {
+                        alert(res.error);
+                    }
+                }
+
+            })
+        }
+
+        //点击保存，根据NAME来执行脚本
+        function BtnSaveEvent() {
+            //清除错误信息
+            $(".error-msg").empty();
+            if (NAME) {
+                //编辑
+                EditAccount();
+            } else {
+                //添加
+                AddAccount();
+            }
+        }
+
+        //新增用户
+        function AddAccount() {
+            $.ajax({
+                url: "{% url 'infoManage:account_add' %}",
+                type: "post",
+                data: $("#formAddEdit").serialize(),
+                dataType: 'JSON',
+                success: function (res) {
+                    if (res.status) {
+                        console.log("创建成功");
+                        $('#modalAddEdit').modal('hide');
+                        Message("提醒消息", "账号创建成功");
+                        FlushPage(2100);
+                    } else {
+                        // 把错误信息显示在对话框中
+                        $.each(res.error, function (name, errorList) {
+                            $("#id_" + name).next().text(errorList[0]);
+                        })
+                    }
+                }
+            })
+        }
+
+        //编辑用户
+        function EditAccount() {
+            //点击保存按钮，发生请求  /account/edit/?name=xxx
+            $.ajax({
+                url: "{% url 'infoManage:account_edit' %}" + "?name=" + NAME,
+                type: "post",
+                data: $("#formAddEdit").serialize(),
+                dataType: 'JSON',
+                success: function (res) {
+                    if (res.status) {
+                        console.log('修改成功')
+                        $('#modalAddEdit').modal('hide');
+                        Message("提醒消息", "账号修改成功");
+                        FlushPage(2100);
+                    } else {
+                        if (res.tips) {
+                            alert(res.tips);
+                        } else {
+                            // 把错误信息显示在对话框中
+                            $.each(res.error, function (name, errorList) {
+                                $("#id_" + name).next().text(errorList[0]);
+                            })
+                        }
+                    }
+                }
+            })
+        }
+
+        //获取明文密码
+        function GetPassword(ciphertext) {
+            $.ajax({
+                    url: "{% url 'infoManage:account_get_password' %}",
+                    type: "post",
+                    data: {
+                        'encryption_password': ciphertext
+                    },
+                    dataType: 'JSON',
+                    success: function (res) {
+                        if (res.status) {
+                            let aux = document.createElement("input");
+                            aux.setAttribute("value", res.plaintext);
+                            document.body.appendChild(aux);
+                            aux.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(aux);
+                            console.log(res.message + "，密码复制成功");
+                            //alert("复制成功");
+                        }
+                            //console.log(res.plaintext);
+                        //location.reload();
+                        else {
+                            // 把错误信息显示在对话框中
+                            console.log(res.message);
+                        }
+                    }
+                }
+            )
+        }
+
+        //点击删除按钮，显示对话框
+        function BtnDeleteEvent(content) {
+
+            $('#modalDelete').modal('show');
+            NAME = content
+            console.log(NAME);
+        }
+
+        //点击确定删除按钮，发送ajax请求删除数据
+        function ConfirmDeleteEvent() {
+            $.ajax({
+                url: "{% url 'infoManage:account_delete' %}",
+                type: "get",
+                data: {
+                    name: NAME
+                },
+                dataType: "JSON",
+                success: function (res) {
+                    if (res.status) {
+                        //删除成功信息
+                        //alert(res.msg);
+                        NAME = undefined
+                        $('#modalDelete').modal('hide');
+                        Message("提醒消息", "域名删除成功");
+                        FlushPage(2100);
+
+                    } else {
+                        //删除失败
+                        alert(res.error)
+                    }
+                }
+            })
+        }
+
+        //显示上传模态框
+        function UploadEvent() {
+            $('#modalUpload').modal('show');
+        }
+
+        //上传excel
+        function uploads() {
+            const form_data = new FormData();
+            form_data.append('files', $('#file_uploads')[0].files[0]);
+            $.ajax({
+                url: "{% url 'infoManage:account_upload' %}",
+                type: 'post',
+                contentType: false,
+                processData: false,
+                data: form_data,
+                success: function () {
+                    alert('上传完成!')
+                    location.reload();
+                }
+            })
+        }
+
+        //点击复制
+        function copyToClip(content, message) {
+            let aux = document.createElement("input");
+            aux.setAttribute("value", content);
+            document.body.appendChild(aux);
+            aux.select();
+            document.execCommand("copy");
+            document.body.removeChild(aux);
+            if (message == null) {
+                console.log("复制成功");
+                //alert("复制成功");
+            } else {
+                alert(message);
+            }
+        }
+
+
+    </script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'infoManage/layout.html' %}
+{% block search %}
+    <div id="placeholder" style="width: 210px; height: 30px;"></div>
+{% endblock %}
+{% load static %}
+{% block content %}
+    <!-- 为ECharts准备多个具备大小（宽高）的Dom -->
+    <div>
+        <div id="account" style="width: 1000px;height:400px;"></div>
+        <div id="server" style="width: 1000px;height:400px;"></div>
+        <div id="domain" style="width: 1000px;height:400px;"></div>
+    </div>
+{% endblock %}
+{% block js %}
+    <script src="{% static 'infoManage/js/echarts.js' %}"></script>
+    <script type="text/javascript">
+        // 基于准备好的dom，初始化echarts实例
+        let accountChart = echarts.init(document.getElementById('account'));
+        let serverChart = echarts.init(document.getElementById('server'));
+        let domainChart = echarts.init(document.getElementById('domain'));
+
+        // 指定图表的配置项和数据
+        accountOption = {
+            title: {
+                text: "账号分布",
+                left: 'center',
+                top: 'center'
+            },
+            series: [
+                {
+                    type: 'pie',
+                    data: [
+                        {% for key,value in account_count.items %}
+                            {
+                                value: '{{ value }}',
+                                name: '{{ key }}: {{ value }}个'
+                            },
+                        {% endfor %}
+                    ],
+                    radius: ['35%', '55%']
+                },
+            ]
+        };
+
+        // 指定图表的配置项和数据
+        serverOption = {
+            title: {
+                text: '服务器分布',
+                right: 'center',
+                top: 'center'
+            },
+            series: [
+                {
+                    type: 'pie',
+                    data: [
+                        {% for key,value in server_count.items %}
+                            {
+                                value: '{{ value }}',
+                                name: '{{ key }}: {{ value }}个'
+                            },
+                        {% endfor %}
+                    ],
+                    radius: ['35%', '55%']
+                }
+            ]
+        };
+        // 指定图表的配置项和数据
+        domainOption = {
+            title: {
+                text: '域名分布',
+                left: 'center',
+                top: 'center'
+            },
+            series: [
+                {
+                    type: 'pie',
+                    data: [
+                        {% for key,value in domain_count.items %}
+                            {
+                                value: '{{ value }}',
+                                name: '{{ key }}: {{ value }}个'
+                            },
+                        {% endfor %}
+                    ],
+                    radius: ['35%', '55%']
+                }
+            ]
+        };
+
+        // 使用刚指定的配置项和数据显示图表。
+        accountChart.setOption(accountOption);
+        serverChart.setOption(serverOption);
+        domainChart.setOption(domainOption);
+
+
+    </script>
+{% endblock %}

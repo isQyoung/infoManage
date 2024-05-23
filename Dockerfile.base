@@ -1,0 +1,5 @@
+FROM python:3.8.17
+COPY init/container_init.py /root/
+COPY requirements.txt /root/
+WORKDIR /root
+RUN apt update && apt install -y libpcre3 libpcre3-dev && python container_init.py && pip install -r requirements.txt && apt clean && rm container_init.py requirements.txt

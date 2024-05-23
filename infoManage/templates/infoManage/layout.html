@@ -1,0 +1,264 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <link rel="icon" href="{% static 'infoManage/image/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'infoManage/plugins/bootstrap-5.3.0-dist/css/bootstrap.min.css' %}">
+    <style>
+
+        @media (min-width: 768px) {
+            .bd-placeholder-img-lg {
+                font-size: 3.5rem;
+            }
+        }
+
+        .nav-scroller {
+            display: flex;
+            flex-wrap: nowrap;
+            padding-bottom: 1rem;
+            margin-top: -1px;
+            overflow-x: auto;
+            text-align: center;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+<!-- 主界面 -->
+<body>
+<header class="p-3 mb-3 border-bottom">
+    <div class="container" >
+        <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start" >
+            <!-- 系统名称 -->
+            <a href="/home" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+                <span class="fs-4">信息管理系统</span>
+            </a>
+            <ul class="nav nav-pills col-12 col-lg-auto me-lg-auto mb-2 justify-content-center mb-md-0">
+                <!-- 功能区域按钮 -->
+                <li><a href="{% url 'infoManage:environment_list' %}" class="nav-link {{ area|default_if_none:'' }}">区域</a>
+                </li>
+                <li><a href="{% url 'infoManage:account_list' env_name=env_name %}"
+                       class="nav-link {{ account|default_if_none:'' }}">账号</a></li>
+                <li><a href="{% url 'infoManage:server_list' env_name=env_name %}"
+                       class="nav-link {{ server|default_if_none:'' }}">服务器</a></li>
+                <li><a href="{% url 'infoManage:domain_list' env_name=env_name %}"
+                       class="nav-link {{ domain|default_if_none:'' }}">域名</a></li>
+            </ul>
+            {% block search %}
+            {% endblock %}
+            <div class="dropdown text-end">
+                <a class="dropdown-toggle" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                    {{ request.session.info.name }}<span class="caret"></span></a>
+                <ul class="dropdown-menu text-small" style="">
+                    <li><a class="dropdown-item" onclick="ChangePassword()">修改密码</a></li>
+                    <li><a class="dropdown-item" onclick="Register()">新增用户</a></li>
+                    <li><a class="dropdown-item" href="{% url 'infoManage:logout' %}">退出登录</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+</header>
+
+<div class="container">
+    <!-- 网页内容区域 -->
+    {% block content %}{% endblock %}
+</div>
+<!-- 注册用户Modal -->
+<div class="modal fade" id="modalRegister" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalRegisterLabel">注册用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formRegister" novalidate class="form-horizontal">
+                    <div class="clearfix">
+                        {% for i in register %}
+                            <div class="col-xs-12">
+                                <div class="form-group" style="position: relative;margin-bottom: 20px">
+                                    <label>{{ i.label }}</label>
+                                    {{ i }}
+                                    <span class="error-msg" style="color: red;position: absolute"></span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="RegisterAdmin()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 修改用户密码Modal -->
+<div class="modal fade" id="modalChangePassword" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="modalChangePasswordLabel">title</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formChangePassword" novalidate class="form-horizontal">
+                    <div class="clearfix">
+                        {% for i in cp_form %}
+                            <div class="col-xs-12">
+                                <div class="form-group" style="position: relative;margin-bottom: 20px">
+                                    <label>{{ i.label }}</label>
+                                    {% if i.label == "当前用户" %}
+                                        <input type="text" name="current_username" class="form-control"
+                                               placeholder="当前用户" required id="id_current_username"
+                                               value="{{ request.session.info.username }}" readonly>
+                                    {% else %}
+                                        {{ i }}
+                                    {% endif %}
+                                    <span class="error-msg" style="color: red;position: absolute"></span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="ConfirmChange()">确认修改</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 消息弹出框 -->
+<div id="all_message" class="toast show" style="position: fixed;background-color: #c4c8cb;display: none">
+    <div class="toast-header">
+        <strong class="me-auto" style="color: #1a1d20">消息标题</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" style="color: #1a1d20">
+        <p>内容</p>
+    </div>
+</div>
+<!-- 加载js-->
+<script src="{% static 'infoManage/js/jquery-3.7.0.min.js' %}"></script>
+<script src="{% static 'infoManage/plugins/bootstrap-5.3.0-dist/js/bootstrap.bundle.js' %}"></script>
+<script type="text/javascript">
+
+    // 弹出新建用户窗口
+    function Register() {
+        // 清空对话框内容
+        $("#formRegister")[0].reset();
+        // 修改对话框标题
+        $("#modalRegisterLabel").text("新建用户");
+        // 显示新建账号模态框
+        $('#modalRegister').modal('show');
+        //清空可能残留的错误
+        $(".error-msg").empty();
+    }
+
+    //点击保存按钮，发生请求
+    function RegisterAdmin() {
+        console.log($("#formRegister").serialize())
+        $.ajax({
+            url: "{% url 'infoManage:register' %}",
+            type: "post",
+            data: $("#formRegister").serialize(),
+            dataType: 'JSON',
+            success: function (res) {
+                if (res.status) {
+                    console.log('注册成功');
+                    alert('创建成功')
+                    //刷新页面
+                    //location.reload();
+                    //跳转登录页面
+                    {#location.href = "{% url 'infoManage:login' %}";#}
+                } else {
+                    // 先去除可能原先存在的报错
+                    $.each(res.field_names, function (number, name) {
+                        console.log(name)
+                        $("#id_" + name).next().text('');
+                    })
+                    // 把错误信息显示在对话框中
+                    $.each(res.error, function (name, errorList) {
+                        $("#id_" + name).next().text(errorList[0]);
+                    })
+                }
+            }
+        })
+    }
+
+    // 弹出修改密码窗口
+    function ChangePassword() {
+        // 清空对话框内容
+        $("#formChangePassword")[0].reset();
+        // 修改对话框标题
+        $("#modalChangePasswordLabel").text("修改密码");
+        // 显示修改密码模态框
+        $('#modalChangePassword').modal('show');
+        //清空可能残留的错误
+        $(".error-msg").empty();
+    }
+
+    // 弹出消息框
+    function Message(title, content) {
+        // 选中消息框元素
+        let toast = document.getElementById('all_message');
+        // 将消息框放到屏幕正中间
+        toast.style.top = '20%';
+        toast.style.left = '50%';
+        toast.style.transform = 'translate(-50%, -50%)';
+        // 修改标题和内容
+        toast.getElementsByClassName('me-auto')[0].textContent = title;
+        toast.getElementsByTagName('p')[0].textContent = content;
+        $('#all_message').show()
+        setTimeout(function () {
+            $('#all_message').hide();
+        }, 2000);
+    }
+
+    //刷新页面
+    function FlushPage(wait_time){
+         setTimeout(function () {
+            location.reload();
+        }, wait_time);
+    }
+    //点击确认修改按钮，发生请求
+    function ConfirmChange() {
+        console.log($("#formChangePassword").serialize());
+        $.ajax({
+            url: "{% url 'infoManage:change_password' %}",
+            type: "post",
+            data: $("#formChangePassword").serialize(),
+            dataType: 'JSON',
+            success: function (res) {
+                if (res.status) {
+                    console.log('修改成功');
+                    $('#modalChangePassword').modal('hide');
+                    Message("提醒消息", "密码修改成功,即将注销");
+                    //刷新页面
+                    location.href = "{% url 'infoManage:logout' %}";
+                } else {
+                    // 先去除可能原先存在的报错
+                    $.each(res.field_names, function (number, name) {
+                        console.log(name)
+                        $("#id_" + name).next().text('');
+                    })
+                    // 把错误信息显示在对话框中
+                    console.log(res.status)
+                    $.each(res.error, function (name, errorList) {
+                        console.log(name, errorList[0])
+                        $("#id_" + name).next().text(errorList[0]);
+                    })
+                }
+            }
+        })
+    }
+</script>
+<!-- js脚本 -->
+{% block js %}{% endblock %}
+</body>
+</html>

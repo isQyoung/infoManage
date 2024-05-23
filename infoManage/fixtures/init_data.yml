@@ -1,0 +1,7 @@
+- model: infoManage.Environment
+  pk: default
+  fields:
+    area_name: 默认环境
+    create_time: 2023-01-02 8:00:00+00:00
+    update_time: 2023-01-02 8:00:00+00:00
+    note: 默认环境

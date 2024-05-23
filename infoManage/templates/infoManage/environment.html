@@ -1,0 +1,265 @@
+{% extends 'infoManage/pagination.html' %}
+{% load static %}
+{% block body %}
+    <!-- 新建按钮 -->
+    <button type="button" class="btn btn-success" onclick="AddEvent()">新建区域</button>
+    <button type="button" class="btn btn-info" data-toggle="modal" onclick="UploadEvent()">模板上传</button>
+    <!-- 显示区域表 -->
+    <div class="bs-example" data-example-id="Governable-table">
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                {% for key in key_list %}
+                    <th>{{ key }}</th>
+                {% endfor %}
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data in page_obj %}
+                <tr>
+                    <td>{{ data.area }}</td>
+                    <td><a href="{% url 'infoManage:account_list' env_name=data.area %}">{{ data.area_name }}</a></td>
+                    <td>{{ data.create_time|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ data.update_time|date:"Y-m-d H:i:s" }}</td>
+                    <td>{{ data.note|default_if_none:"" }}</td>
+                    <td>
+                        {% if data.area != "default" %}
+                            <a class="btn btn-primary btn-sm btn-edit" onclick="editServer('{{ data.area }}')">编辑</a>
+                            <a class="btn btn-danger btn-sm btn-delete" onclick="DeleteServer('{{ data.area }}')">删除</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- 添加/编辑区域Modal -->
+    <div class="modal fade" id="modalAddEdit" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAddEditLabel">区域</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAddEdit" novalidate class="form-horizontal">
+                        <div class="clearfix">
+                            {% for i in form %}
+                                <div class="col-xs-12">
+                                    <div class="form-group" style="position: relative;margin-bottom: 20px">
+                                        <label>{{ i.label }}</label>
+                                        {{ i }}
+                                        <span class="error-msg" style="color: red;position: absolute"></span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="BtnSaveEvent()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 删除区域Modal -->
+    <div class="modal fade" id="modalDelete" tabindex="-1" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-body alert alert-danger alert-dismissible" role="alert">
+                <h4>是否删除该区域？</h4>
+                <p>删除后，相关区域信息将会消失！</p>
+                <div class="modal-footer" style="pointer-events: auto">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="ConfirmDeleteServer()">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 上传Small modal -->
+    <div class="modal fade" id="modalUpload" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content">
+                <p>
+                    <!-- 读取 static目录下的文件-->
+                    <a href="{% static 'infoManage/excel/environment.xlsx' %}">模板下载</a>
+                    <input type="file" class="form-control" name="upload" id="file_uploads" required/>
+                </p>
+                <button class="btn btn-info form-control" type="submit" onclick="uploads()" value="submit">上传
+                </button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block js %}
+    <script type="text/javascript">
+        //区域
+        let AREA;
+
+        //点击新建弹出
+        function AddEvent() {
+            // 将正在编辑的AREA设置为空
+            AREA = undefined;
+            // 清空对话框内容
+            $("#formAddEdit")[0].reset();
+            // 修改对话框标题
+            $("#modalAddEditLabel").text("新建区域");
+            // 显示新建区域模态框
+            $('#modalAddEdit').modal('show');
+            //清空可能残留的错误
+            $(".error-msg").empty();
+        }
+
+        //点击编辑弹出
+        function editServer(content) {
+            // 编辑区域信息
+            AREA = content
+            $.ajax({
+                url: "{% url 'infoManage:environment_detail' %}",
+                type: "get",
+                data: {
+                    area: content
+                },
+                dataType: "JSON",
+                success: function (res) {
+                    if (res.status) {
+                        //将数据赋值到标签中
+                        $.each(res.data, function (name, value) {
+                            $("#id_" + name).val(value)
+                        })
+                        //修改对话框标题
+                        $("#modalAddEditLabel").text("编辑")
+                        //点击编辑按钮，显示对话框
+                        $('#modalAddEdit').modal('show');
+                        //清空可能残留的错误
+                        $(".error-msg").empty();
+                    } else {
+                        alert(res.error);
+                    }
+                }
+
+            })
+
+        }
+
+        //点击保存，根据AREA来执行脚本
+        function BtnSaveEvent() {
+            // 清除错误信息
+            $(".error-msg").empty();
+            // 变量AREA存在则是编辑，不存在则是新建
+            if (AREA) {
+                EditServer();
+            } else {
+                AddServer();
+            }
+        }
+
+        //新增区域
+        function AddServer() {
+            //点击保存按钮，发生请求
+            $.ajax({
+                url: "{% url 'infoManage:environment_add' %}",
+                type: "post",
+                data: $("#formAddEdit").serialize(),
+                dataType: 'JSON',
+                success: function (res) {
+                    if (res.status) {
+                        $('#modalAddEdit').modal('hide');
+                        Message("提醒消息", "区域添加成功");
+                        FlushPage(2100);
+                    } else {
+                        // 把错误信息显示在对话框中
+                        $.each(res.error, function (name, errorList) {
+                            $("#id_" + name).next().text(errorList[0]);
+                        })
+                    }
+                }
+            })
+        }
+
+        //编辑区域
+        function EditServer() {
+            //点击保存按钮，发生请求/env/edit/?area=xx
+            $.ajax({
+                url: "{% url 'infoManage:environment_edit' %}" + "?area=" + AREA,
+                type: "post",
+                data: $("#formAddEdit").serialize(),
+                dataType: 'JSON',
+                success: function (res) {
+                    if (res.status) {
+                        $('#modalAddEdit').modal('hide');
+                        Message("提醒消息", "区域修改成功");
+                        FlushPage(2100);
+                    } else {
+                        if (res.tips) {
+                            alert(res.tips);
+                        } else {
+                            // 把错误信息显示在对话框中
+                            $.each(res.error, function (name, errorList) {
+                                $("#id_" + name).next().text(errorList[0]);
+                            })
+                        }
+                    }
+                }
+            })
+        }
+
+
+        //点击删除按钮，显示对话框
+        function DeleteServer(content) {
+            $('#modalDelete').modal('show');
+            AREA = content
+            console.log('询问删除 ' + AREA);
+        }
+
+        //点击确定删除按钮，发送ajax请求删除数据
+        function ConfirmDeleteServer() {
+            console.log('确定删除' + AREA);
+            $.ajax({
+                url: "{% url 'infoManage:environment_delete' %}",
+                type: "get",
+                data: {
+                    area: AREA
+                },
+                dataType: "JSON",
+                success: function (res) {
+                    if (res.status) {
+                        //删除成功信息
+                        console.log(AREA + ' 删除成功');
+                        AREA = undefined
+                        $('#modalDelete').modal('hide');
+                        Message("提醒消息", "区域删除成功");
+                        FlushPage(2100);
+                    } else {
+                        //删除失败
+                        alert(res.error)
+                        location.reload()
+                    }
+                }
+            });
+        }
+
+        //显示上传模态框
+        function UploadEvent() {
+            $('#modalUpload').modal('show');
+        }
+
+        //上传excel
+        function uploads() {
+            const form_data = new FormData();
+            form_data.append('files', $('#file_uploads')[0].files[0]);
+            $.ajax({
+                url: "{% url 'infoManage:environment_upload' %}",
+                type: 'post',
+                contentType: false,
+                processData: false,
+                data: form_data,
+                success: function () {
+                    alert('上传完成!')
+                    location.reload();
+                }
+            })
+        }
+    </script>
+{% endblock %}
